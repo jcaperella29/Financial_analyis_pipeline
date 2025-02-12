@@ -1,113 +1,158 @@
 import os
-import pandas as pd
-import matplotlib.pyplot as plt
 import argparse
+import pandas as pd
 
-# CLI Argument Parsing
-parser = argparse.ArgumentParser(description="Plot F-Score & Valuation Trends")
-parser.add_argument("--data-dir", type=str, required=True, help="Path to the scraped financial data directory")
-parser.add_argument("--tickers", type=str, required=True, help="Comma-separated tickers to analyze")
+# Parse CLI arguments
+parser = argparse.ArgumentParser(description="Stock Picker: Analyze and classify financial data.")
+parser.add_argument(
+    "--data-dir", 
+    type=str, 
+    required=True, 
+    help="Path to the directory containing financial data CSV files."
+)
+parser.add_argument(
+    "--tickers", 
+    type=str, 
+    required=True, 
+    help="Comma-separated list of tickers to process (e.g., 'GM,TSLA,AAPL')."
+)
 args = parser.parse_args()
 
-# Create directories for saving plots & CSV data
-f_score_plot_dir = os.path.join(args.data_dir, "f_score_trends")
-valuation_plot_dir = os.path.join(args.data_dir, "valuation_trends")
-trend_data_dir = os.path.join(args.data_dir, "trend_data")  # New directory for trend CSVs
+# Set directory path and tickers
+data_dir = args.data_dir
+tickers = args.tickers.split(",")  # Convert comma-separated string into a list
 
-os.makedirs(f_score_plot_dir, exist_ok=True)
-os.makedirs(valuation_plot_dir, exist_ok=True)
-os.makedirs(trend_data_dir, exist_ok=True)
-
-# ✅ Use the exact column names from `stock_picker.py`
-F_SCORE_METRICS = [
-    "Return on Assets (ROA)", "Operating Cash Flow", "Net Income",
-    "Current Ratio", "Debt / Equity Ratio", "Total Common Shares Outstanding",
-    "Gross Margin", "Asset Turnover"
-]
-
-VALUATION_METRICS = ["PE Ratio", "PB Ratio", "P/FCF Ratio", "PEG Ratio", "EV/EBITDA Ratio"]
-
-def load_and_transform_data(ticker, metric_list, metric_type):
-    """
-    Loads financial data and extracts yearly data for the given metrics.
-    """
-    file_path = f"{args.data_dir}/{ticker}_ratios.csv"
-
-    if not os.path.exists(file_path):
-        print(f"❌ Missing data file: {file_path}. Skipping {ticker}.")
-        return None
-
-    df = pd.read_csv(file_path)
-
-    # ✅ Ensure the first column is treated as the index (i.e., financial metric names)
-    df.set_index(df.columns[0], inplace=True)
-
-    # ✅ Transpose: Now rows are years and columns are metrics
-    df = df.T
-
-    # ✅ Check if requested metrics exist in the data
-    available_metrics = [metric for metric in metric_list if metric in df.columns]
-
-    if not available_metrics:
-        print(f"⚠️ No valid {metric_type} metrics found for {ticker}. Skipping...")
-        return None
-
-    # ✅ Extract only the available metrics
-    df_filtered = df[available_metrics].dropna(how="all")
-
-    return df_filtered
-
-def save_trend_data(ticker, metric_type, data):
-    """
-    Saves extracted trend data as a CSV file for report generation.
-    """
-    if data is None:
-        return
-
-    save_path = os.path.join(trend_data_dir, f"{ticker}_{metric_type}_trend.csv")
-    data.to_csv(save_path, index=True)  # Index = Years
-    print(f"💾 Saved {metric_type} trend data: {save_path}")
-
-def plot_trend(data, ticker, metric_type, save_dir):
-    """
-    Creates a scatter plot of metric trends over years.
-    """
-    if data is None:
-        return
-
-    plt.figure(figsize=(10, 6))
+# Function to load and merge financial data for a ticker
+def load_ticker_data(ticker):
+    """Loads and merges financial data CSVs for a given ticker."""
+    files = {
+        "ratios": f"{data_dir}/{ticker}_ratios.csv",
+        "cash_flow": f"{data_dir}/{ticker}_cash_flow.csv",
+        "balance_sheet": f"{data_dir}/{ticker}_balance_sheet.csv",
+        "income_statement": f"{data_dir}/{ticker}_income_statement.csv",
+    }
     
-    for column in data.columns:
-        plt.scatter(data.index, data[column], label=column, alpha=0.7)
-        plt.plot(data.index, data[column], marker="o", linestyle="-")
+    dataframes = {}
+    for key, file_path in files.items():
+        if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+            df = pd.read_csv(file_path)
+            df["Ticker"] = ticker  # Add ticker column
+            dataframes[key] = df
+        else:
+            print(f"Warning: Missing or empty file for {ticker}: {file_path}")
 
-    plt.xlabel("Year")
-    plt.ylabel(f"{metric_type} Score")
-    plt.title(f"{metric_type} Trends for {ticker}")
-    plt.legend()
-    plt.xticks(rotation=45)
-    plt.grid()
+    if dataframes:
+        merged_df = pd.concat(dataframes.values(), axis=0, ignore_index=True)  # Stack yearly data
+        return merged_df
+    return None
 
-    save_path = os.path.join(save_dir, f"{ticker}.png")
-    plt.savefig(save_path, bbox_inches="tight")
-    plt.close()
-    print(f"📊 Saved plot: {save_path}")
+# Reshape Data
+def reshape_data(df, ticker):
+    """Converts 'Fiscal Year' row values into column headers and ensures the Ticker column is aligned."""
+    df = df.set_index("Fiscal Year").T  # Transpose the dataset
+    df = df.rename_axis("Date").reset_index()  # Reset index
+    df["Ticker"] = ticker  # Add the ticker column to every row
+    df = df.loc[:, ~df.columns.duplicated()]  # Remove duplicate columns
+    return df
 
-# Process each ticker
-tickers = args.tickers.split(",")
-
+# Load and reshape data for all tickers
+all_ticker_data = []
 for ticker in tickers:
-    print(f"📈 Processing {ticker} for F-Score & Valuation trends...")
+    raw_data = load_ticker_data(ticker)
+    if raw_data is not None:
+        reshaped_data = reshape_data(raw_data, ticker)
+        all_ticker_data.append(reshaped_data)
 
-    # Load, save, and plot F-Score trends
-    f_score_data = load_and_transform_data(ticker, F_SCORE_METRICS, "F-Score")
-    save_trend_data(ticker, "F1_Score", f_score_data)  # Save for report generation
-    plot_trend(f_score_data, ticker, "F-Score", f_score_plot_dir)
+if all_ticker_data:
+    all_tickers_df = pd.concat(all_ticker_data, ignore_index=True)
+else:
+    print("Error: No valid financial data found. Check your CSV files.")
+    exit()
 
-    # Load, save, and plot Valuation trends
-    valuation_data = load_and_transform_data(ticker, VALUATION_METRICS, "Valuation")
-    save_trend_data(ticker, "Valuation", valuation_data)  # Save for report generation
-    plot_trend(valuation_data, ticker, "Valuation", valuation_plot_dir)
+# Debugging: Print available columns
+print("Available Columns in DataFrame:", all_tickers_df.columns.tolist())
 
-print("✅ Trend plotting completed!")
+# Ensure numeric conversion
+def ensure_numeric(df, columns):
+    """Converts specified columns to numeric, handling errors."""
+    for col in columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)  # Convert invalid values to NaN, then fill with 0
+    return df
 
+# Compute Financial Health Metrics
+def compute_financial_metrics(df):
+    metrics = {}
+
+    # Compute Piotroski F-Score (average across all years)
+    try:
+        f_score_cols = [
+            "Return on Assets (ROA)", "Operating Cash Flow", "Net Income",
+            "Current Ratio", "Debt / Equity Ratio", "Total Common Shares Outstanding",
+            "Gross Margin", "Asset Turnover"
+        ]
+
+        # Ensure numeric conversion for F-Score columns
+        df = ensure_numeric(df, f_score_cols)
+
+        # Apply F-Score calculation
+        metrics["Piotroski_F"] = (df[f_score_cols] > 0).sum(axis=1)
+    except Exception as e:
+        print(f"Error in Piotroski F-Score calculation: {e}")
+        metrics["Piotroski_F"] = None
+
+    # Compute Stock Valuation (based on current valuation metrics)
+    try:
+        # Select the ratios table and extract the first (current year) column for valuation
+        valuation_cols = [
+            "PE Ratio", "PB Ratio", "P/FCF Ratio", "PEG Ratio", "EV/EBITDA Ratio"
+        ]
+
+        # Ensure numeric conversion for all relevant valuation metrics
+        recent_data = ensure_numeric(df, valuation_cols)
+
+        # Check the first column of the ratios table
+        metrics["Stock_Valuation"] = recent_data[valuation_cols].iloc[0].mean()
+    except Exception as e:
+        print(f"Error in Stock Valuation calculation: {e}")
+        metrics["Stock_Valuation"] = 0
+
+    return pd.DataFrame(metrics)
+
+# Apply metrics calculation
+all_tickers_metrics = compute_financial_metrics(all_tickers_df)
+
+# Concatenate metrics with the original DataFrame
+all_tickers_df = pd.concat([all_tickers_df, all_tickers_metrics], axis=1)
+
+# Group data by ticker to calculate averages for Piotroski F-Score
+average_f_scores = all_tickers_df.groupby("Ticker", as_index=False)["Piotroski_F"].mean()
+
+# Keep only Stock Valuation for the most recent year
+recent_valuations = all_tickers_df.sort_values("Date").drop_duplicates(subset="Ticker", keep="last")[["Ticker", "Stock_Valuation"]]
+
+# Merge the averaged F-Score and recent valuation
+aggregated_df = pd.merge(average_f_scores, recent_valuations, on="Ticker")
+
+# Classification
+def classify_company(row):
+    f_score = row.get("Piotroski_F", None)
+    valuation = row.get("Stock_Valuation", None)
+
+    if pd.isnull(f_score) or pd.isnull(valuation):
+        return "Unknown"  # Assign "Unknown" if any score is missing
+    elif f_score >= 7 and valuation < 20:
+        return "Strong"
+    elif f_score >= 4 and valuation < 30:
+        return "Medium"
+    else:
+        return "Weak"
+
+# Apply classification
+aggregated_df["Classification"] = aggregated_df.apply(classify_company, axis=1)
+
+# Save results
+output_file = os.path.join(data_dir, "financial_classification_results.csv")
+aggregated_df.to_csv(output_file, index=False)
+
+print(f"Classification results saved to {output_file}")
