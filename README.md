@@ -1,86 +1,76 @@
+# 📊 Company Value Pipeline  
 
-
-md
-Copy
-Edit
-# 📊 Financial Analysis Pipeline  
-A **rule-based AI** financial analysis pipeline that scrapes stock data, calculates **Piotroski F-Score** & **Stock Valuation**, and generates trend plots.  
+A financial data pipeline that scrapes company financials, evaluates stock strength, analyzes sentiment, and generates reports.  
 
 ## 🚀 Features  
-✔ **Automated Financial Data Scraping** via Selenium  
-✔ **Piotroski F-Score Calculation** (average over historical data)  
-✔ **Stock Valuation Calculation** (using current year data)  
-✔ **Classification System**: Categorizes stocks as `Strong`, `Medium`, or `Weak`  
-✔ **Trend Plots**: Generates **F-Score & Valuation** trends over time  
-✔ **One-Click CLI Execution**  
+✅ **Web Scraper** – Fetches financial data from stockanalysis.com  
+✅ **Stock Picker** – Calculates Piotroski F-Score & stock valuation  
+✅ **Trend Analysis** – Uses regression to detect stock performance trends  
+✅ **Sentiment Analysis** – Extracts news & determines sentiment  
+✅ **Report Generator** – Produces PDFs summarizing all findings  
 
-## 📂 File Structure  
-Financial_analyis_pipeline/ │── finance_analyzer_2.0.py # 🚀 Main pipeline script
-│── Finance_data_scraper.py # 📡 Web scraper for stock data
-│── stock_picker.py # 📊 Financial metric calculations
-│── plot_trends.py # 📈 Generates F-Score & Valuation trend plots
-│── ticker.csv # 🏷️ Input file with stock tickers & URLs
-│── financial_data/ # 💾 Stores scraped data & results
-│ ├── financial_classification_results.csv # Final stock classifications
-│ ├── f_score_trends/ # F-Score trend plots
-│ ├── valuation_trends/ # Valuation trend plots
+---
+
+## 🛠️ **Installation**  
+1. **Clone the repository**  
+```bash
+git clone https://github.com/YOUR_GITHUB_USERNAME/Company_value_pipeline.git
+cd Company_value_pipeline
+Install dependencies
+bash
+Copy
+Edit
+pip install -r requirements.txt
+🔥 How to Run the Pipeline
+To analyze financial data, run:
 
 bash
 Copy
 Edit
+python finance_analyzer_3.0.py --tickers tickers.csv --data-dir financial_data --report-dir reports
+This will:
+📡 Scrape financial data
+📊 Evaluate stocks
+📈 Analyze trends (F1 Score & valuation)
+📰 Perform sentiment analysis
+📄 Generate PDF reports
 
-## 🔧 Installation  
-1️⃣ **Clone the Repository**  
-```sh
-git clone https://github.com/jcaperella29/Financial_analyis_pipeline.git  
-cd Financial_analyis_pipeline
-2️⃣ Install Dependencies
-
-sh
+📂 File Structure
+graphql
 Copy
 Edit
-pip install -r requirements.txt
-3️⃣ Setup Selenium WebDriver
+Company_value_pipeline/
+│── finance_analyzer_3.0.py      # Main pipeline script  
+│── Finance_data_scraper.py      # Scrapes financial data  
+│── stock_picker.py              # Calculates stock scores  
+│── plot_trends.py               # Generates trend plots & saves data  
+│── sentiment_tracker.py         # Fetches & analyzes stock news  
+│── report_generator.py          # Generates final reports  
+│── data/                        # Stores scraped financial data  
+│── reports/                     # Contains generated PDF reports  
+│── tickers.csv                  # List of tickers to analyze  
+│── README.md                    # Project documentation  
+📄 Generated Reports
+The final PDF reports summarize:
+✅ Stock Classification (Strong, Weak, etc.)
+✅ F1 Score Trend – Determines if stock strength is improving
+✅ Valuation Trend – Detects if the stock is becoming a good buy
+✅ Sentiment Analysis – Evaluates positive/negative news impact
+✅ Final Verdict – Recommends Buy / Hold / Sell
 
-Download Geckodriver
-Update GECKODRIVER_PATH & FIREFOX_BINARY_PATH in Finance_data_scraper.py
-⚡ Usage
-Run Full Pipeline
+🛠 Troubleshooting
+Issue: Missing trend data in reports?
+✔ Run plot_trends.py manually to regenerate CSV files
 
+bash
+Copy
+Edit
+python plot_trends.py --data-dir financial_data --tickers "AAPL,TSLA,GM"
+Issue: Sentiment analysis failing?
+✔ Ensure sentiment_tracker.py is properly fetching news
 
-python finance_analyzer_2.0.py --tickers ticker.csv --data-dir financial_data
-Scrapes stock financials
-Computes F-Score & Stock Valuation
-Generates trend plots
-Outputs classification results
+Issue: Reports not generating?
+✔ Check financial_data/trend_data/ for missing files
 
-
-python finance_analyzer_2.0.py --tickers ticker.csv --data-dir financial_data --skip-scraper
-📊 Example Output
-Final Classification (financial_classification_results.csv)
-Ticker	Piotroski_F	Stock_Valuation	Classification
-AAPL	6.3	24.1	Medium
-GM	5.8	9.2	Strong
-TSLA	3.7	32.5	Weak
-Generated Trend Plots
-📈 F-Score Trend (Years vs. F-Score)
-📊 Valuation Trend (Years vs. Valuation Score)
-Saved in:
-
-
-financial_data/f_score_trends/
-financial_data/valuation_trends/
-(Each ticker has its own .png file showing the trend over the years.)
-
-🛠️ Roadmap
-🔹 Improve classification logic 📈
-🔹 Support more valuation metrics 💰
-🔹 Add interactive visualization 📊
-
-🤝 Contributing
-Fork the repo & create a new branch
-Make changes & commit
-Submit a Pull Request
-⚖️ License
-MIT License
-
+🏆 Contributing
+Feel free to submit PRs for new features, bug fixes, or optimizations!
